@@ -1,4 +1,4 @@
-# backup_docker_volumes
+# docker-volumes-nas-backup
 
 Sauvegarde et restauration des volumes Docker **et des données d'application en bind
 mount** (ex : `/DATA/AppData/<app>` sous CasaOS) d'une machine vers un
