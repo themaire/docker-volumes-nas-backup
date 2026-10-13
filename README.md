@@ -11,6 +11,33 @@ sauvegarde ou de la restauration, pour garantir des données cohérentes.
 > <conteneur>`, `Mounts[].Type == "bind"`). Sans `APPDATA_PATH_PREFIX` configuré, ces
 > données ne sont PAS couvertes par la sauvegarde.
 
+## Démarrage rapide
+
+```bash
+# 1. Créer sa config à partir du modèle (le vrai fichier n'est jamais commité)
+cp docker-backup.conf.example docker-backup.conf
+nano docker-backup.conf          # NAS_USER, NAS_HOST, NAS_SSH_KEY, NAS_BACKUP_PATH...
+
+# 2. Autoriser la clé SSH sur le NAS (connexion sans mot de passe)
+ssh-copy-id -i ~/.ssh/ma_cle.pub -p 22 utilisateur@nas
+
+# 3. Pré-tirer l'image utilisée pour les archives
+docker pull alpine:3.20
+
+# 4. Premier essai sur un seul conteneur, puis tout
+./backup-docker-volumes.sh mon_conteneur
+./backup-docker-volumes.sh ALL
+
+# 5. (Optionnel) Sauvegarde automatique chaque nuit à 3 h : crontab -e
+0 3 * * * /chemin/vers/backup-docker-volumes.sh ALL >/dev/null 2>&1
+```
+
+`docker-backup.conf` joue le rôle d'un fichier `.env` : un simple fichier de variables
+`NOM="valeur"` chargé par les scripts (pas d'espaces autour du `=`). Il contient des
+informations sur votre infrastructure (adresse du NAS, utilisateur, chemin de la clé SSH)
+et est exclu du dépôt par le `.gitignore` ; seul le modèle `docker-backup.conf.example`
+est versionné. Toutes les variables sont détaillées dans [Configuration](#configuration).
+
 ## Fichiers
 
 | Fichier                          | Rôle                                                          |
@@ -18,7 +45,7 @@ sauvegarde ou de la restauration, pour garantir des données cohérentes.
 | `backup-docker-volumes.sh`        | Sauvegarde des volumes vers le NAS                             |
 | `restore-docker-volumes.sh`       | Restauration des volumes depuis le NAS                         |
 | `docker-backup.conf.example`      | Modèle de configuration                                        |
-| `docker-backup.conf`              | Configuration réelle (non versionnée si le dépôt est public)   |
+| `docker-backup.conf`              | Configuration réelle (exclue du dépôt par `.gitignore`)        |
 
 ## Prérequis
 
