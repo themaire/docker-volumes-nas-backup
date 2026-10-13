@@ -182,3 +182,10 @@ apporte :
 L'idée serait de **conserver la logique actuelle d'arrêt des conteneurs groupe par groupe**
 (union-find, redémarrage immédiat), et de lancer `restic backup` sur les volumes/dossiers
 de chaque groupe à la place du `tar czf`. Alternatives similaires : borg / borgmatic.
+
+## Licence
+
+Distribué sous licence [MIT](LICENSE) — © 2026 Themaire. Utilisation, modification et
+redistribution libres, à condition de conserver la mention de copyright et le texte de
+la licence. Fourni « tel quel », sans garantie : testez vos restaurations avant d'en
+dépendre.
