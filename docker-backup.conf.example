@@ -1,0 +1,48 @@
+# Copier ce fichier en "docker-backup.conf" (même dossier que le script) et l'adapter.
+# Ce fichier est source par le script bash : pas d'espaces autour des "=".
+
+# --- Accès NAS (SSH/rsync) ---
+NAS_USER="backupuser"
+NAS_HOST="nas.local"
+NAS_SSH_PORT="22"
+NAS_SSH_KEY="/home/moi/.ssh/id_ed25519_nas"
+NAS_BACKUP_PATH="/volume1/backups/docker"
+
+# --- Image Docker utilisée pour tar/untar les volumes ---
+# Épinglée (pas "alpine:latest") pour un comportement reproductible et pour ne pas
+# dépendre d'un accès à Docker Hub au moment du backup si l'image n'est pas déjà en
+# cache local. Penser à la pré-tirer : docker pull alpine:3.20
+ALPINE_IMAGE="alpine:3.20"
+
+# --- Stockage local temporaire (avant envoi vers le NAS) ---
+# Choisir de préférence un disque distinct du SSD/eMMC système si possible : les
+# archives temporaires (tar.gz) peuvent atteindre plusieurs Go (photos, bases de
+# données...), et des écritures répétées de cette taille usent un SSD plus vite.
+LOCAL_TMP_DIR="/var/backups/docker-volumes"
+
+# --- Rétention (nombre de sauvegardes à conserver, les plus récentes) ---
+RETENTION_COUNT="5"
+
+# --- Fichier de log ---
+LOG_FILE="/var/log/docker-volume-backup.log"
+
+# --- Volumes à exclure (séparés par des espaces), ex: volumes de cache non critiques ---
+EXCLUDE_VOLUMES=""
+
+# --- Données d'application hors volumes Docker (bind mounts, ex: CasaOS) ---
+# Préfixe des chemins hôte à considérer comme "données d'application" à sauvegarder
+# en plus des volumes Docker nommés. Laisser vide pour désactiver.
+APPDATA_PATH_PREFIX="/DATA/AppData"
+
+# Clés à exclure du mode ALL pour les données d'application (relatives à
+# APPDATA_PATH_PREFIX, "/" remplacé par "__", séparées par des espaces),
+# ex: big-bear-immich__model-cache pour un gros cache non critique.
+EXCLUDE_APPDATA=""
+
+# --- Commande de notification en cas d'échec (optionnel), ex: mail ou webhook ---
+# Ligne de commande shell complète ; le message d'erreur y est disponible en "$1".
+# Mettre des guillemets SIMPLES (sinon "$1" serait évalué au chargement de la config) :
+#   NOTIFY_CMD='curl -s -d "$1" https://ntfy.sh/mon-sujet'
+#   NOTIFY_CMD='/home/moi/bin/notifier.sh "$1"'
+# Laisser vide pour désactiver.
+NOTIFY_CMD=""

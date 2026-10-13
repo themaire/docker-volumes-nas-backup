@@ -1,0 +1,5 @@
+# Config réelle : IP du NAS, utilisateur, chemin de clé SSH
+docker-backup.conf
+
+.DS_Store
+._*
