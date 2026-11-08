@@ -28,8 +28,7 @@ docker pull alpine:3.20
 ./backup-docker-volumes.sh mon_conteneur
 ./backup-docker-volumes.sh ALL
 
-# 5. (Optionnel) Sauvegarde automatique chaque nuit à 3 h : crontab -e
-0 3 * * * /chemin/vers/backup-docker-volumes.sh ALL >/dev/null 2>&1
+# 5. (Optionnel) Sauvegarde automatique chaque nuit : voir « Planification (cron) »
 ```
 
 `docker-backup.conf` joue le rôle d'un fichier `.env` : un simple fichier de variables
@@ -119,6 +118,41 @@ Exemple de config :
   Ces dossiers ne comptent pas dans la rétention, pour qu'une série de nuits ratées ne
   fasse pas disparaître les dernières sauvegardes complètes ; chacun est supprimé dès
   qu'une sauvegarde complète plus récente existe.
+
+## Planification (cron)
+
+Pour une sauvegarde automatique chaque nuit, ajouter une ligne à la crontab **de
+l'utilisateur qui lance habituellement les scripts** (`crontab -e`, sans `sudo`) :
+
+```cron
+0 3 * * * for i in 1 2 3; do ssh -p 22 -i /home/utilisateur/.ssh/ma_cle -o BatchMode=yes -o ConnectTimeout=10 utilisateur@nas true && break; [ $i -lt 3 ] && sleep 1800; done; cd /chemin/vers/docker-volumes-nas-backup && ./backup-docker-volumes.sh ALL >> /home/utilisateur/.local/state/docker-volume-backup/cron.log 2>&1
+```
+
+Reprendre le port, la clé et `utilisateur@nas` de `docker-backup.conf`.
+
+- **Attente du NAS** : jusqu'à 3 essais de connexion espacés de 30 min (utile si le NAS
+  sort de veille ou redémarre). Si le NAS ne répond toujours pas, le script est lancé
+  quand même : il échoue de lui-même avant d'arrêter le moindre conteneur, et l'erreur
+  « impossible de se connecter au NAS » est ainsi tracée dans `LOG_FILE`.
+- **Pas de relance automatique** après un échec : le code retour 1 couvre aussi une
+  sauvegarde incomplète, et relancer arrêterait à nouveau tous les conteneurs.
+- **Pas de `sudo`** : un utilisateur membre du groupe `docker` suffit, puisque tout le
+  travail `tar` se fait dans le conteneur `ALPINE_IMAGE`. Sous `sudo`, SSH utiliserait
+  le `known_hosts` de root, où l'empreinte du NAS est en général absente (« Host key
+  verification failed » avec `BatchMode=yes`).
+- **bash obligatoire** : lancer `./backup-docker-volumes.sh` (ou `bash …`), jamais
+  `sh …` ni `zsh …` ; les scripts refusent de démarrer sous un autre shell.
+- **Chemins absolus** partout dans la ligne : cron démarre avec un `PATH` et un
+  environnement minimaux.
+- **Journaux** : le détail de chaque run est dans `LOG_FILE` ; `cron.log` ne sert qu'à
+  comprendre un script qui n'aurait même pas démarré.
+- **Rétention** : les sauvegardes manuelles d'un seul conteneur comptent dans les
+  `RETENTION_COUNT` conservées. Des sauvegardes ponctuelles fréquentes peuvent donc
+  évincer des sauvegardes complètes `ALL`.
+- **Agent ou orchestrateur dans un conteneur** : la sauvegarde `ALL` arrête aussi ce
+  conteneur. Ne pas lancer le script depuis un conteneur sauvegardé lui-même (il serait
+  tué en cours de route, et les conteneurs déjà arrêtés ne seraient pas redémarrés) :
+  le déclenchement doit rester sur l'hôte.
 
 ## Restauration
 
