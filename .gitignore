@@ -3,3 +3,5 @@ docker-backup.conf
 
 .DS_Store
 ._*
+
+*workspace
