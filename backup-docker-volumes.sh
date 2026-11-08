@@ -30,6 +30,13 @@
 #   ./backup-docker-volumes.sh mon_conteneur
 #   ./backup-docker-volumes.sh conteneur1 conteneur2
 #
+# Ce script exige bash (BASH_SOURCE, tableaux, [[ ]]...). Test en syntaxe POSIX pour
+# échouer proprement même s'il est lancé avec sh ou zsh (ex : « zsh ./script.sh »).
+if [ -z "${BASH_VERSION:-}" ]; then
+    echo "Erreur : ce script doit être exécuté avec bash (ex : ./backup-docker-volumes.sh ou bash backup-docker-volumes.sh)." >&2
+    exit 1
+fi
+
 set -euo pipefail
 
 # --------------------------------------------------------------------------

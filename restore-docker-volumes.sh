@@ -43,6 +43,13 @@
 #   ./restore-docker-volumes.sh --volume mon_volume --yes
 #   ./restore-docker-volumes.sh --path /DATA/AppData/hermes --yes
 #
+# Ce script exige bash (BASH_SOURCE, tableaux, [[ ]]...). Test en syntaxe POSIX pour
+# échouer proprement même s'il est lancé avec sh ou zsh (ex : « zsh ./script.sh »).
+if [ -z "${BASH_VERSION:-}" ]; then
+    echo "Erreur : ce script doit être exécuté avec bash (ex : ./restore-docker-volumes.sh ou bash restore-docker-volumes.sh)." >&2
+    exit 1
+fi
+
 set -euo pipefail
 
 # --------------------------------------------------------------------------
