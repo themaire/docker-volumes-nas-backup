@@ -74,6 +74,7 @@ cp docker-backup.conf.example docker-backup.conf
 | `APPDATA_PATH_PREFIX` | Préfixe hôte des données d'application à sauvegarder en plus des volumes Docker (ex : `/DATA/AppData`). Vide = désactivé. |
 | `EXCLUDE_APPDATA` | Clés à exclure en mode `ALL` (chemin relatif à `APPDATA_PATH_PREFIX`, `/` → `__`, séparées par des espaces) |
 | `NOTIFY_CMD`      | Commande shell de notification en cas d'échec (optionnel), message en `"$1"`. Entre guillemets simples, ex : `NOTIFY_CMD='curl -s -d "$1" https://ntfy.sh/mon-sujet'` |
+| `REQUIRED_MOUNTS` | Points de montage à monter avant toute opération s'ils ne le sont pas déjà (optionnel, séparés par des espaces), via leur unité systemd `.mount` et `sudo -n systemctl start`. Voir « Points de montage requis » ci-dessous |
 | `ALPINE_IMAGE`    | Image utilisée pour tar/untar les volumes (défaut : `alpine:3.20`, épinglée plutôt que `latest` pour rester reproductible et ne pas dépendre d'un accès à Docker Hub au moment du backup — pensez à la pré-tirer avec `docker pull`) |
 
 Exemple de config :
@@ -149,6 +150,16 @@ Reprendre le port, la clé et `utilisateur@nas` de `docker-backup.conf`.
 - **Rétention** : les sauvegardes manuelles d'un seul conteneur comptent dans les
   `RETENTION_COUNT` conservées. Des sauvegardes ponctuelles fréquentes peuvent donc
   évincer des sauvegardes complètes `ALL`.
+- **Points de montage requis** (`REQUIRED_MOUNTS`) : avant tout arrêt de conteneur,
+  chaque point non monté est monté en démarrant son unité systemd (ex :
+  `/mnt/nas/backup` → `mnt-nas-backup.mount`). Le script utilise `sudo -n`, qui échoue
+  au lieu de demander un mot de passe, pour ne jamais bloquer le cron. Il faut donc
+  autoriser cette seule commande sans mot de passe (`sudo visudo -f
+  /etc/sudoers.d/docker-backup`) :
+  ```
+  utilisateur ALL=(root) NOPASSWD: /usr/bin/systemctl start mnt-nas-backup.mount
+  ```
+  Si le montage échoue, la sauvegarde s'arrête avant de toucher aux conteneurs.
 - **Agent ou orchestrateur dans un conteneur** : la sauvegarde `ALL` arrête aussi ce
   conteneur. Ne pas lancer le script depuis un conteneur sauvegardé lui-même (il serait
   tué en cours de route, et les conteneurs déjà arrêtés ne seraient pas redémarrés) :

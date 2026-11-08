@@ -167,6 +167,7 @@ source "${CONF_FILE}"
 : "${LOG_FILE:=/var/log/docker-volume-backup.log}"
 : "${APPDATA_PATH_PREFIX:=}"
 : "${ALPINE_IMAGE:=alpine:3.20}"
+: "${REQUIRED_MOUNTS:=}"
 APPDATA_PATH_PREFIX="${APPDATA_PATH_PREFIX%/}"
 
 SSH_OPTS=(-p "${NAS_SSH_PORT}" -i "${NAS_SSH_KEY}" -o BatchMode=yes -o ConnectTimeout=10)
@@ -177,6 +178,24 @@ STOPPED_CONTAINERS=()
 log() {
     local level="$1"; shift
     printf '%s [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${level}" "$*" | tee -a "${LOG_FILE}"
+}
+
+# Monte chaque point de REQUIRED_MOUNTS qui ne l'est pas encore, en démarrant son unité
+# systemd .mount (ex : /mnt/nas/backup -> mnt-nas-backup.mount). « sudo -n » ne demande
+# jamais de mot de passe, pour ne pas bloquer un cron : il faut une règle sudoers
+# NOPASSWD pour ce « systemctl start » (voir README).
+ensure_mounts() {
+    local mp unit
+    for mp in ${REQUIRED_MOUNTS}; do
+        mountpoint -q -- "${mp}" && continue
+        unit="$(systemd-escape --path --suffix=mount -- "${mp}")"
+        log "INFO" "${mp} n'est pas monté : démarrage de ${unit}..."
+        if ! sudo -n systemctl start "${unit}" || ! mountpoint -q -- "${mp}"; then
+            FAILED_MOUNT="${mp}"
+            return 1
+        fi
+        log "INFO" "${mp} monté."
+    done
 }
 
 # Convertit un chemin hôte sous APPDATA_PATH_PREFIX en clé d'archive (ex :
@@ -251,7 +270,15 @@ if ! flock -n 9; then
     exit 1
 fi
 
-mkdir -p "${LOCAL_TMP_DIR}" "$(dirname "${LOG_FILE}")"
+mkdir -p "$(dirname "${LOG_FILE}")"
+
+# Montages avant de toucher à LOCAL_TMP_DIR (qui peut se trouver sur l'un d'eux).
+FAILED_MOUNT=""
+if ! ensure_mounts; then
+    log "ERROR" "Impossible de monter ${FAILED_MOUNT} (sudo -n systemctl start refusé ou montage en échec). Abandon."
+    exit 1
+fi
+mkdir -p "${LOCAL_TMP_DIR}"
 
 # --------------------------------------------------------------------------
 # Détermination des filtres (conteneurs, --volume, --path, ou ALL = pas de filtre)

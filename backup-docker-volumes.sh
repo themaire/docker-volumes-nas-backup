@@ -129,6 +129,7 @@ source "${CONF_FILE}"
 : "${APPDATA_PATH_PREFIX:=}"
 : "${EXCLUDE_APPDATA:=}"
 : "${ALPINE_IMAGE:=alpine:3.20}"
+: "${REQUIRED_MOUNTS:=}"
 APPDATA_PATH_PREFIX="${APPDATA_PATH_PREFIX%/}"
 
 TIMESTAMP="$(date +%Y-%m-%d_%H-%M-%S)"
@@ -155,6 +156,24 @@ notify_failure() {
     if [[ -n "${NOTIFY_CMD}" ]]; then
         bash -c "${NOTIFY_CMD}" notify "Backup Docker volumes échoué : ${message}" || true
     fi
+}
+
+# Monte chaque point de REQUIRED_MOUNTS qui ne l'est pas encore, en démarrant son unité
+# systemd .mount (ex : /mnt/nas/backup -> mnt-nas-backup.mount). « sudo -n » ne demande
+# jamais de mot de passe, pour ne pas bloquer un cron : il faut une règle sudoers
+# NOPASSWD pour ce « systemctl start » (voir README).
+ensure_mounts() {
+    local mp unit
+    for mp in ${REQUIRED_MOUNTS}; do
+        mountpoint -q -- "${mp}" && continue
+        unit="$(systemd-escape --path --suffix=mount -- "${mp}")"
+        log "INFO" "${mp} n'est pas monté : démarrage de ${unit}..."
+        if ! sudo -n systemctl start "${unit}" || ! mountpoint -q -- "${mp}"; then
+            FAILED_MOUNT="${mp}"
+            return 1
+        fi
+        log "INFO" "${mp} monté."
+    done
 }
 
 # Convertit un chemin hôte sous APPDATA_PATH_PREFIX en clé d'archive (ex :
@@ -222,13 +241,22 @@ if ! flock -n 9; then
     exit 1
 fi
 
-mkdir -p "${LOCAL_TMP_DIR}" "$(dirname "${LOG_FILE}")"
+mkdir -p "$(dirname "${LOG_FILE}")"
 
 log "INFO" "=== Début de la sauvegarde des volumes Docker (${TIMESTAMP}) ==="
 
 # --------------------------------------------------------------------------
 # Pré-vérifications
 # --------------------------------------------------------------------------
+# Montages d'abord : LOCAL_TMP_DIR peut se trouver sur l'un d'eux, et le créer avant
+# le montage l'écrirait sur le disque sous-jacent.
+FAILED_MOUNT=""
+if ! ensure_mounts; then
+    notify_failure "impossible de monter ${FAILED_MOUNT} (sudo -n systemctl start refusé ou montage en échec)"
+    exit 1
+fi
+mkdir -p "${LOCAL_TMP_DIR}"
+
 if ! command -v docker >/dev/null; then
     notify_failure "docker introuvable sur cette machine"
     exit 1

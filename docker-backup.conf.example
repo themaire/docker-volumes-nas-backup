@@ -20,6 +20,13 @@ ALPINE_IMAGE="alpine:3.20"
 # données...), et des écritures répétées de cette taille usent un SSD plus vite.
 LOCAL_TMP_DIR="/var/backups/docker-volumes"
 
+# --- Points de montage requis (optionnel, séparés par des espaces) ---
+# Montés avant toute opération s'ils ne le sont pas déjà, via leur unité systemd .mount
+# (ex : /mnt/nas/backup -> mnt-nas-backup.mount), avec « sudo -n systemctl start ». Le
+# script échoue s'il ne peut pas les monter. Exige une règle sudoers NOPASSWD (voir
+# README). Laisser vide pour désactiver.
+REQUIRED_MOUNTS=""
+
 # --- Rétention (nombre de sauvegardes à conserver, les plus récentes) ---
 RETENTION_COUNT="5"
 
