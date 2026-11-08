@@ -243,7 +243,14 @@ fi
 
 mkdir -p "$(dirname "${LOG_FILE}")"
 
-log "INFO" "=== Début de la sauvegarde des volumes Docker (${TIMESTAMP}) ==="
+# Le mode figure dans la ligne de début : un outil de surveillance peut ainsi distinguer
+# une sauvegarde complète (ALL) d'une sauvegarde manuelle de quelques conteneurs.
+if [[ "${ALL_MODE}" -eq 1 ]]; then
+    RUN_MODE="mode ALL"
+else
+    RUN_MODE="conteneurs : ${CONTAINERS[*]}"
+fi
+log "INFO" "=== Début de la sauvegarde des volumes Docker (${TIMESTAMP}, ${RUN_MODE}) ==="
 
 # --------------------------------------------------------------------------
 # Pré-vérifications
