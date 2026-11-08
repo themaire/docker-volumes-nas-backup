@@ -223,7 +223,6 @@ if ! flock -n 9; then
 fi
 
 mkdir -p "${LOCAL_TMP_DIR}" "$(dirname "${LOG_FILE}")"
-mkdir -p "${BACKUP_DIR}"
 
 log "INFO" "=== Début de la sauvegarde des volumes Docker (${TIMESTAMP}) ==="
 
@@ -359,7 +358,11 @@ if [[ "${TOTAL_VOLUMES}" -eq 0 && "${TOTAL_APPDATA}" -eq 0 ]]; then
     exit 0
 fi
 
-log "INFO" "${TOTAL_VOLUMES} volume(s) et ${TOTAL_APPDATA} dossier(s) d'application à sauvegarder, en ${#UNIT_CONTAINERS[@]} groupe(s) (+${#ORPHAN_VOLUMES[@]} volume(s) orphelin(s))."
+log "INFO" "${TOTAL_VOLUMES} volume(s) et ${TOTAL_APPDATA} dossier(s) d'application à sauvegarder, en ${#UNIT_CONTAINERS[@]} groupe(s) (dont ${#ORPHAN_VOLUMES[@]} volume(s) orphelin(s), sauvegardé(s) à la fin sans arrêt)."
+
+# Dossier de travail créé seulement maintenant : un arrêt anticipé (NAS injoignable,
+# conteneur inconnu, rien à sauvegarder...) ne laisse pas de dossier vide derrière lui.
+mkdir -p "${BACKUP_DIR}"
 
 # --------------------------------------------------------------------------
 # Sauvegarde groupe par groupe : arrêt seulement des conteneurs du groupe, tar de ses
